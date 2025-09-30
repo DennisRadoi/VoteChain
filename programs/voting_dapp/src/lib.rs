@@ -114,6 +114,16 @@ pub mod voting_dapp {
         });
         Ok(())
     }
+
+    // Delete proposal and reclaim rent (only creator, only after closed)
+    pub fn delete_proposal(ctx: Context<DeleteProposal>) -> Result<()> {
+        let proposal = &ctx.accounts.proposal;
+        require!(proposal.creator == *ctx.accounts.creator.key, VotingError::Unauthorized);
+        require!(!proposal.is_active, VotingError::ProposalStillActive);
+        
+        // Account will be closed automatically and rent returned to creator
+        Ok(())
+    }
 }
 
 // ----------------- ACCOUNTS -----------------
@@ -179,6 +189,14 @@ pub struct CloseProposal<'info> {
     pub creator: Signer<'info>,
 }
 
+#[derive(Accounts)]
+pub struct DeleteProposal<'info> {
+    #[account(mut, close = creator)]
+    pub proposal: Account<'info, Proposal>,
+    #[account(mut)]
+    pub creator: Signer<'info>,
+}
+
 // ----------------- ERRORS -----------------
 
 #[error_code]
@@ -203,4 +221,6 @@ pub enum VotingError {
     OptionTooLong,
     #[msg("Invalid option index.")]
     InvalidOption,
+    #[msg("Proposal must be closed before deletion.")]
+    ProposalStillActive,
 }

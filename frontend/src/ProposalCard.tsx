@@ -177,6 +177,10 @@ export default function ProposalCard({
   const winningIndex = account.voteCounts.reduce((maxIdx, count, idx, arr) => 
     count.toNumber() > arr[maxIdx].toNumber() ? idx : maxIdx, 0
   );
+  
+  // Time-locked results: hide until voting ends
+  const votingEnded = now >= end;
+  const showResults = votingEnded || !account.isActive;
 
   return (
     <div
@@ -237,57 +241,133 @@ export default function ProposalCard({
           color: "var(--text-secondary)",
           marginBottom: "0.75rem",
           textTransform: "uppercase",
-          letterSpacing: "0.05em"
+          letterSpacing: "0.05em",
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem"
         }}>
           Results
+          {!showResults && (
+            <span style={{
+              fontSize: "0.75rem",
+              background: "rgba(139, 92, 246, 0.2)",
+              color: "var(--accent-primary)",
+              padding: "0.25rem 0.5rem",
+              borderRadius: "6px",
+              fontWeight: 500
+            }}>
+              🔒 Hidden until voting ends
+            </span>
+          )}
         </div>
-        {account.options.map((option, idx) => {
-          const votes = account.voteCounts[idx]?.toNumber() || 0;
-          const percentage = totalVotes > 0 ? ((votes / totalVotes) * 100).toFixed(1) : "0";
-          const isWinning = totalVotes > 0 && idx === winningIndex;
-          
-          return (
-            <div key={idx} style={{ marginBottom: "0.75rem" }}>
-              <div style={{ 
-                display: "flex", 
-                justifyContent: "space-between",
-                marginBottom: "0.5rem",
-                alignItems: "center"
-              }}>
-                <span style={{ 
-                  fontWeight: isWinning ? 600 : 400,
-                  color: isWinning ? "var(--accent-primary)" : "var(--text-primary)"
-                }}>
-                  {isWinning && "🏆 "}{option}
-                </span>
-                <span style={{ 
-                  fontSize: "0.875rem",
-                  color: "var(--text-secondary)",
-                  fontWeight: 500
-                }}>
-                  {votes} votes ({percentage}%)
-                </span>
-              </div>
-              <div style={{ 
-                height: 8, 
-                background: "var(--bg-tertiary)", 
-                borderRadius: 8, 
-                overflow: "hidden",
-                border: "1px solid var(--border-color)"
-              }}>
+        
+        {showResults ? (
+          // Show actual results after voting ends
+          account.options.map((option, idx) => {
+            const votes = account.voteCounts[idx]?.toNumber() || 0;
+            const percentage = totalVotes > 0 ? ((votes / totalVotes) * 100).toFixed(1) : "0";
+            const isWinning = totalVotes > 0 && idx === winningIndex;
+            
+            return (
+              <div key={idx} style={{ marginBottom: "0.75rem" }}>
                 <div style={{ 
-                  height: "100%", 
-                  width: `${percentage}%`, 
-                  background: isWinning 
-                    ? "linear-gradient(90deg, var(--accent-primary), var(--accent-hover))"
-                    : "linear-gradient(90deg, #4ade80, #22c55e)",
-                  transition: "width 0.5s ease",
-                  boxShadow: isWinning ? "0 0 12px var(--accent-glow)" : "none"
-                }} />
+                  display: "flex", 
+                  justifyContent: "space-between",
+                  marginBottom: "0.5rem",
+                  alignItems: "center"
+                }}>
+                  <span style={{ 
+                    fontWeight: isWinning ? 600 : 400,
+                    color: isWinning ? "var(--accent-primary)" : "var(--text-primary)"
+                  }}>
+                    {isWinning && "🏆 "}{option}
+                  </span>
+                  <span style={{ 
+                    fontSize: "0.875rem",
+                    color: "var(--text-secondary)",
+                    fontWeight: 500
+                  }}>
+                    {votes} votes ({percentage}%)
+                  </span>
+                </div>
+                <div style={{ 
+                  height: 8, 
+                  background: "var(--bg-tertiary)", 
+                  borderRadius: 8, 
+                  overflow: "hidden",
+                  border: "1px solid var(--border-color)"
+                }}>
+                  <div style={{ 
+                    height: "100%", 
+                    width: `${percentage}%`, 
+                    background: isWinning 
+                      ? "linear-gradient(90deg, var(--accent-primary), var(--accent-hover))"
+                      : "linear-gradient(90deg, #4ade80, #22c55e)",
+                    transition: "width 0.5s ease",
+                    boxShadow: isWinning ? "0 0 12px var(--accent-glow)" : "none"
+                  }} />
+                </div>
+              </div>
+            );
+          })
+        ) : (
+          // Show hidden results with blur effect during voting
+          <div style={{ position: "relative" }}>
+            {account.options.map((option, idx) => (
+              <div key={idx} style={{ marginBottom: "0.75rem" }}>
+                <div style={{ 
+                  display: "flex", 
+                  justifyContent: "space-between",
+                  marginBottom: "0.5rem",
+                  alignItems: "center",
+                  filter: "blur(8px)",
+                  userSelect: "none"
+                }}>
+                  <span>{option}</span>
+                  <span style={{ 
+                    fontSize: "0.875rem",
+                    color: "var(--text-secondary)",
+                    fontWeight: 500
+                  }}>
+                    ??? votes (??%)
+                  </span>
+                </div>
+                <div style={{ 
+                  height: 8, 
+                  background: "var(--bg-tertiary)", 
+                  borderRadius: 8, 
+                  overflow: "hidden",
+                  border: "1px solid var(--border-color)",
+                  filter: "blur(4px)"
+                }}>
+                  <div style={{ 
+                    height: "100%", 
+                    width: "50%",
+                    background: "linear-gradient(90deg, #666, #888)",
+                  }} />
+                </div>
+              </div>
+            ))}
+            <div style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              background: "rgba(0, 0, 0, 0.8)",
+              padding: "1rem 1.5rem",
+              borderRadius: "12px",
+              border: "1px solid var(--border-color)",
+              textAlign: "center",
+              backdropFilter: "blur(10px)"
+            }}>
+              <div style={{ fontSize: "2rem", marginBottom: "0.5rem" }}>🔒</div>
+              <div style={{ fontWeight: 600, marginBottom: "0.25rem" }}>Results Hidden</div>
+              <div style={{ fontSize: "0.875rem", color: "var(--text-secondary)" }}>
+                Revealed after voting ends
               </div>
             </div>
-          );
-        })}
+          </div>
+        )}
       </div>
 
       <div style={{ 
