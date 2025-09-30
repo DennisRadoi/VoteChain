@@ -1,5 +1,5 @@
 {
-  "address": "FotkyW5saNF7jWoJXZm4yDcEabcCkUnZPB2RQa7hJJZr",
+  "address": "YzJtguRigAkcpxN5rRpWWiJiQkBXKXNZEu5zWQVJqK4",
   "metadata": {
     "name": "voting_dapp",
     "version": "0.1.0",
@@ -65,6 +65,12 @@
           "type": "string"
         },
         {
+          "name": "options",
+          "type": {
+            "vec": "string"
+          }
+        },
+        {
           "name": "duration_sec",
           "type": "i64"
         }
@@ -124,8 +130,8 @@
       ],
       "args": [
         {
-          "name": "choice",
-          "type": "bool"
+          "name": "option_index",
+          "type": "u8"
         }
       ]
     }
@@ -229,6 +235,26 @@
       "code": 6005,
       "name": "TooEarlyToClose",
       "msg": "Too early to close."
+    },
+    {
+      "code": 6006,
+      "name": "NotEnoughOptions",
+      "msg": "Not enough options (must be >= 2)."
+    },
+    {
+      "code": 6007,
+      "name": "TooManyOptions",
+      "msg": "Too many options (max 10)."
+    },
+    {
+      "code": 6008,
+      "name": "OptionTooLong",
+      "msg": "Option text is too long (max 50 chars)."
+    },
+    {
+      "code": 6009,
+      "name": "InvalidOption",
+      "msg": "Invalid option index."
     }
   ],
   "types": [
@@ -246,12 +272,16 @@
             "type": "string"
           },
           {
-            "name": "votes_yes",
-            "type": "u64"
+            "name": "options",
+            "type": {
+              "vec": "string"
+            }
           },
           {
-            "name": "votes_no",
-            "type": "u64"
+            "name": "vote_counts",
+            "type": {
+              "vec": "u64"
+            }
           },
           {
             "name": "is_active",
@@ -278,12 +308,10 @@
             "type": "pubkey"
           },
           {
-            "name": "votes_yes",
-            "type": "u64"
-          },
-          {
-            "name": "votes_no",
-            "type": "u64"
+            "name": "vote_counts",
+            "type": {
+              "vec": "u64"
+            }
           },
           {
             "name": "end_ts",
@@ -312,6 +340,10 @@
           {
             "name": "end_ts",
             "type": "i64"
+          },
+          {
+            "name": "num_options",
+            "type": "u8"
           }
         ]
       }
@@ -330,8 +362,8 @@
             "type": "pubkey"
           },
           {
-            "name": "choice",
-            "type": "bool"
+            "name": "option_index",
+            "type": "u8"
           },
           {
             "name": "bump",
@@ -354,8 +386,8 @@
             "type": "pubkey"
           },
           {
-            "name": "choice",
-            "type": "bool"
+            "name": "option_index",
+            "type": "u8"
           }
         ]
       }

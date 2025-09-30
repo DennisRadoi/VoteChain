@@ -12,8 +12,8 @@ import ProposalCard from "./ProposalCard";
 type ProposalAccount = {
   creator: PublicKey;
   description: string;
-  votesYes: anchor.BN;
-  votesNo: anchor.BN;
+  options: string[];
+  voteCounts: anchor.BN[];
   isActive: boolean;
   startTs: anchor.BN;
   endTs: anchor.BN;
@@ -23,8 +23,8 @@ type ProposalAccount = {
 type RawProposalAccount = {
   creator: PublicKey;
   description: string;
-  votes_yes: anchor.BN;
-  votes_no: anchor.BN;
+  options: string[];
+  vote_counts: anchor.BN[];
   is_active: boolean;
   start_ts: anchor.BN;
   end_ts: anchor.BN;
@@ -64,18 +64,23 @@ export default function App() {
         "Proposal" // account name from IDL
       );
 
-      const mapped: AnchorAccount<ProposalAccount>[] = raw.map((r) => ({
-        pubkey: r.pubkey,
-        account: {
-          creator: r.account.creator,
-          description: r.account.description,
-          votesYes: r.account.votes_yes,
-          votesNo: r.account.votes_no,
-          isActive: r.account.is_active,
-          startTs: r.account.start_ts,
-          endTs: r.account.end_ts,
-        },
-      }));
+      const mapped: AnchorAccount<ProposalAccount>[] = raw
+        .filter((r) => {
+          // Filter out old proposals that don't have the new structure
+          return r.account.options && r.account.vote_counts;
+        })
+        .map((r) => ({
+          pubkey: r.pubkey,
+          account: {
+            creator: r.account.creator,
+            description: r.account.description,
+            options: r.account.options,
+            voteCounts: r.account.vote_counts,
+            isActive: r.account.is_active,
+            startTs: r.account.start_ts,
+            endTs: r.account.end_ts,
+          },
+        }));
 
       mapped.sort(
         (a, b) => b.account.endTs.toNumber() - a.account.endTs.toNumber()
@@ -125,45 +130,103 @@ export default function App() {
   }, [program?.programId.toBase58()]);
 
   return (
-    <div style={{ maxWidth: 800, margin: "24px auto", padding: "0 16px" }}>
+    <div style={{ 
+      maxWidth: 900, 
+      margin: "0 auto", 
+      padding: "2rem 1.5rem",
+      minHeight: "100vh"
+    }}>
       <header
         style={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
+          marginBottom: "3rem",
+          padding: "1.5rem 0",
+          borderBottom: "1px solid var(--border-color)"
         }}
       >
-        <h2>Voting dApp</h2>
+        <div>
+          <h2 style={{ 
+            background: "linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            backgroundClip: "text",
+            fontSize: "2.5rem",
+            margin: 0
+          }}>
+            ⚡ Voting dApp
+          </h2>
+          <p style={{ color: "var(--text-secondary)", margin: "0.5rem 0 0 0", fontSize: "0.95rem" }}>
+            Decentralized voting on Solana
+          </p>
+        </div>
         <WalletMultiButton />
       </header>
 
       {!wallet.connected ? (
-        <p>Conectează un wallet pe Devnet pentru a continua.</p>
+        <div style={{
+          textAlign: "center",
+          padding: "4rem 2rem",
+          background: "var(--bg-secondary)",
+          borderRadius: "20px",
+          border: "1px solid var(--border-color)"
+        }}>
+          <h3 style={{ fontSize: "1.5rem", marginBottom: "1rem" }}>👋 Welcome!</h3>
+          <p style={{ color: "var(--text-secondary)", marginBottom: "2rem" }}>
+            Connect your wallet on Devnet to get started
+          </p>
+        </div>
       ) : !program ? (
-        <p>Se inițializează programul...</p>
+        <div style={{ textAlign: "center", padding: "2rem", color: "var(--text-secondary)" }}>
+          <p>⏳ Initializing program...</p>
+        </div>
       ) : (
         <>
           {error && (
             <div
               style={{
-                marginTop: 12,
-                padding: 10,
-                background: "#ffe6e6",
-                color: "#a30000",
-                borderRadius: 8,
+                marginBottom: "1.5rem",
+                padding: "1rem 1.5rem",
+                background: "rgba(239, 68, 68, 0.1)",
+                color: "var(--danger)",
+                borderRadius: "12px",
+                border: "1px solid rgba(239, 68, 68, 0.3)"
               }}
             >
-              <strong>Eroare:</strong> {error}
+              <strong>⚠️ Error:</strong> {error}
             </div>
           )}
 
           <CreateProposalForm program={program} onCreated={() => load()} />
 
-          <div style={{ marginTop: 16 }}>
-            <h3>Propuneri</h3>
-            {loadingList && <p>Se încarcă propunerile...</p>}
+          <div style={{ marginTop: "3rem" }}>
+            <h3 style={{ 
+              fontSize: "1.75rem",
+              marginBottom: "1.5rem",
+              display: "flex",
+              alignItems: "center",
+              gap: "0.5rem"
+            }}>
+              📊 Active Proposals
+            </h3>
+            {loadingList && (
+              <p style={{ textAlign: "center", color: "var(--text-secondary)", padding: "2rem" }}>
+                Loading proposals...
+              </p>
+            )}
             {!loadingList && proposals.length === 0 && (
-              <p>Nu există propuneri.</p>
+              <div style={{
+                textAlign: "center",
+                padding: "3rem 2rem",
+                background: "var(--bg-secondary)",
+                borderRadius: "16px",
+                border: "1px solid var(--border-color)"
+              }}>
+                <p style={{ color: "var(--text-secondary)", fontSize: "1.1rem" }}>
+                  📭 No proposals yet. Create the first one!
+                </p>
+              </div>
             )}
             {!loadingList &&
               proposals.map((p) => (

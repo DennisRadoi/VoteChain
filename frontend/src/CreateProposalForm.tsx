@@ -34,6 +34,13 @@ function encodeI64LE(n: anchor.BN | number | string): Buffer {
   return buf;
 }
 
+function encodeVecString(arr: string[]): Buffer {
+  const lenBuf = Buffer.alloc(4);
+  lenBuf.writeUInt32LE(arr.length, 0);
+  const encoded = arr.map(s => encodeStringBorsh(s));
+  return Buffer.concat([lenBuf, ...encoded]);
+}
+
 type Props = {
   program: Program<any>;
   onCreated?: (proposalPubkey: string) => void;
@@ -41,6 +48,7 @@ type Props = {
 
 export default function CreateProposalForm({ program, onCreated }: Props) {
   const [description, setDescription] = useState("");
+  const [options, setOptions] = useState<string[]>(["Option 1", "Option 2"]);
   const [durationSec, setDurationSec] = useState<number>(60);
   const [loading, setLoading] = useState(false);
 
@@ -80,16 +88,19 @@ export default function CreateProposalForm({ program, onCreated }: Props) {
       return;
     }
     if (!description.trim()) return alert("Descrierea este goală");
+    if (options.length < 2) return alert("Trebuie cel puțin 2 opțiuni");
+    if (options.some(opt => !opt.trim())) return alert("Toate opțiunile trebuie completate");
     if (durationSec <= 0) return alert("Durata trebuie > 0");
 
     setLoading(true);
     try {
       const proposalKp = Keypair.generate();
 
-      // Data: discriminator + (description: string) + (duration_sec: i64)
+      // Data: discriminator + (description: string) + (options: Vec<String>) + (duration_sec: i64)
       const descB = encodeStringBorsh(description);
+      const optsB = encodeVecString(options);
       const durB = encodeI64LE(durationSec);
-      const data = Buffer.concat([CREATE_PROPOSAL_DISC, descB, durB]);
+      const data = Buffer.concat([CREATE_PROPOSAL_DISC, descB, optsB, durB]);
 
       // Cheile în ordinea din IDL pentru create_proposal
       const keys = [
@@ -108,6 +119,7 @@ export default function CreateProposalForm({ program, onCreated }: Props) {
 
       onCreated?.(proposalKp.publicKey.toBase58());
       setDescription("");
+      setOptions(["Option 1", "Option 2"]);
       setDurationSec(60);
       console.log("create_proposal tx:", sig);
     } catch (e: any) {
@@ -119,28 +131,125 @@ export default function CreateProposalForm({ program, onCreated }: Props) {
   }
 
   return (
-    <div style={{ border: "1px solid #ddd", padding: 16, borderRadius: 8 }}>
-      <h3>Crează propunere</h3>
-      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+    <div style={{ 
+      background: "var(--bg-secondary)", 
+      padding: "2rem", 
+      borderRadius: "20px",
+      border: "1px solid var(--border-color)",
+      boxShadow: "0 4px 24px rgba(0, 0, 0, 0.4)"
+    }}>
+      <h3 style={{ marginBottom: "1.5rem", fontSize: "1.5rem" }}>✨ Create New Proposal</h3>
+      
+      <div style={{ marginBottom: "1.5rem" }}>
+        <label style={{ 
+          display: "block", 
+          marginBottom: "0.5rem", 
+          color: "var(--text-secondary)",
+          fontSize: "0.9rem",
+          fontWeight: 500
+        }}>
+          Description
+        </label>
         <input
-          placeholder="Descriere (<=200)"
+          placeholder="What are you voting on? (max 200 chars)"
           maxLength={200}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          style={{ flex: 1, padding: 8 }}
+          style={{ width: "100%" }}
         />
-        <input
-          type="number"
-          min={1}
-          value={durationSec}
-          onChange={(e) => setDurationSec(Number(e.target.value))}
-          style={{ width: 120, padding: 8 }}
-        />
-        <button disabled={loading} onClick={submit}>
-          {loading ? "Se creează..." : "Creează"}
+      </div>
+      
+      <div style={{ marginBottom: "1.5rem" }}>
+        <label style={{ 
+          display: "block", 
+          marginBottom: "0.75rem", 
+          color: "var(--text-secondary)",
+          fontSize: "0.9rem",
+          fontWeight: 500
+        }}>
+          Options (2-10)
+        </label>
+        {options.map((opt, idx) => (
+          <div key={idx} style={{ display: "flex", gap: "0.75rem", marginBottom: "0.75rem" }}>
+            <input
+              placeholder={`Option ${idx + 1} (max 50 chars)`}
+              maxLength={50}
+              value={opt}
+              onChange={(e) => {
+                const newOpts = [...options];
+                newOpts[idx] = e.target.value;
+                setOptions(newOpts);
+              }}
+              style={{ flex: 1 }}
+            />
+            {options.length > 2 && (
+              <button
+                onClick={() => setOptions(options.filter((_, i) => i !== idx))}
+                style={{ 
+                  padding: "0.75rem 1rem",
+                  background: "rgba(239, 68, 68, 0.1)",
+                  border: "1px solid rgba(239, 68, 68, 0.3)",
+                  color: "var(--danger)"
+                }}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        ))}
+        {options.length < 10 && (
+          <button
+            onClick={() => setOptions([...options, `Option ${options.length + 1}`])}
+            style={{ 
+              marginTop: "0.5rem",
+              background: "rgba(139, 92, 246, 0.1)",
+              border: "1px solid rgba(139, 92, 246, 0.3)",
+              color: "var(--accent-primary)"
+            }}
+          >
+            + Add Option
+          </button>
+        )}
+      </div>
+
+      <div style={{ 
+        display: "flex", 
+        gap: "1rem", 
+        alignItems: "flex-end",
+        flexWrap: "wrap"
+      }}>
+        <div style={{ flex: "1", minWidth: "200px" }}>
+          <label style={{ 
+            display: "block", 
+            marginBottom: "0.5rem", 
+            color: "var(--text-secondary)",
+            fontSize: "0.9rem",
+            fontWeight: 500
+          }}>
+            Duration (seconds)
+          </label>
+          <input
+            type="number"
+            min={1}
+            value={durationSec}
+            onChange={(e) => setDurationSec(Number(e.target.value))}
+            style={{ width: "100%" }}
+          />
+        </div>
+        <button 
+          disabled={loading} 
+          onClick={submit} 
+          style={{ 
+            padding: "0.875rem 2rem",
+            fontSize: "1rem",
+            fontWeight: 600,
+            background: loading ? "var(--bg-tertiary)" : "var(--accent-primary)",
+            border: loading ? "1px solid var(--border-color)" : "1px solid var(--accent-primary)"
+          }}
+        >
+          {loading ? "⏳ Creating..." : "🚀 Create Proposal"}
         </button>
       </div>
-      <small>Durată: {durationSec} secunde</small>
     </div>
   );
 }
