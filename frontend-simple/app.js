@@ -232,6 +232,11 @@ function createProposalCard(proposal) {
         count > arr[maxIdx] ? idx : maxIdx, 0
     );
     
+    // Check if current user is the creator
+    const isCreator = wallet && wallet.publicKey && 
+                      proposal.creator.toString() === wallet.publicKey.toString();
+    const canClose = isCreator && votingEnded && proposal.isActive;
+    
     card.innerHTML = `
         <div class="proposal-header">
             <h4>${escapeHtml(proposal.description)}</h4>
@@ -241,9 +246,9 @@ function createProposalCard(proposal) {
         <div class="proposal-meta">
             <span>👤 ${shortAddress(proposal.creator.toString())}</span>
             <span>•</span>
-            <span>${proposal.isActive ? '🟢 Active' : '⚫ Closed'}</span>
+            <span>${votingEnded ? (proposal.isActive ? '🟡 Ended (Not Closed)' : '⚫ Closed') : '🟢 Active'}</span>
             <span>•</span>
-            <span>⏰ ${new Date(endTime * 1000).toLocaleString()}</span>
+            <span>⏰ ${votingEnded ? 'Ended: ' : 'Ends: '}${new Date(endTime * 1000).toLocaleString()}</span>
             <span>•</span>
             <span>🗳️ ${totalVotes} votes</span>
         </div>
@@ -263,6 +268,11 @@ function createProposalCard(proposal) {
                     Vote: ${escapeHtml(option)}
                 </button>
             `).join('')}
+            ${canClose ? `
+                <button class="btn-danger" onclick="closeProposal('${proposal.pubkey.toString()}')">
+                    🔒 Close Proposal
+                </button>
+            ` : ''}
         </div>
     `;
     
@@ -313,6 +323,48 @@ function renderHiddenResults(proposal) {
         </div>
     `;
 }
+
+// Close proposal function
+window.closeProposal = async function(proposalPubkey) {
+    if (!wallet) {
+        alert('Please connect your wallet');
+        return;
+    }
+    
+    if (!confirm('Are you sure you want to close this proposal?')) {
+        return;
+    }
+    
+    try {
+        const proposalKey = new PublicKey(proposalPubkey);
+        
+        // Get discriminator for close_proposal instruction
+        const discriminator = Buffer.from([213, 178, 139, 19, 50, 191, 82, 245]);
+        
+        const instruction = new TransactionInstruction({
+            keys: [
+                { pubkey: proposalKey, isSigner: false, isWritable: true },
+                { pubkey: wallet.publicKey, isSigner: true, isWritable: false },
+            ],
+            programId: new PublicKey(PROGRAM_ID),
+            data: discriminator,
+        });
+        
+        const transaction = new Transaction().add(instruction);
+        transaction.feePayer = wallet.publicKey;
+        transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
+        
+        const signed = await wallet.signTransaction(transaction);
+        const signature = await connection.sendRawTransaction(signed.serialize());
+        await connection.confirmTransaction(signature);
+        
+        alert('✅ Proposal closed successfully!');
+        loadProposals();
+    } catch (err) {
+        console.error('Close proposal failed:', err);
+        alert('Failed to close proposal: ' + err.message);
+    }
+};
 
 // Vote function
 window.vote = async function(proposalPubkey, optionIndex) {
