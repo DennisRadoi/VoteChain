@@ -1,4 +1,4 @@
-# 🗳️ Voting dApp - Vanilla JavaScript Version
+# 🗳️ VoteChain - Vanilla JavaScript Version
 
 A simplified version of the voting dApp using only **HTML, CSS, and vanilla JavaScript** with Vite for development.
 

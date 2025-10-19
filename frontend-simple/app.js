@@ -2,26 +2,20 @@ import * as anchor from '@coral-xyz/anchor';
 import { Connection, PublicKey, Transaction, TransactionInstruction, SystemProgram, Keypair } from '@solana/web3.js';
 import { Buffer } from 'buffer';
 
-// Make Buffer global
 window.Buffer = Buffer;
 
-// Configuration
 const PROGRAM_ID = 'YzJtguRigAkcpxN5rRpWWiJiQkBXKXNZEu5zWQVJqK4';
 const RPC_URL = 'https://api.devnet.solana.com';
 
-// State
 let wallet = null;
 let connection = null;
 let options = ['Option 1', 'Option 2'];
-
-// Initialize
 document.addEventListener('DOMContentLoaded', () => {
     connection = new Connection(RPC_URL, 'confirmed');
     setupEventListeners();
     renderOptions();
 });
 
-// Wallet connection
 async function connectWallet() {
     try {
         if (!window.solana) {
@@ -57,7 +51,6 @@ async function disconnectWallet() {
     document.getElementById('wallet-info').style.display = 'none';
 }
 
-// Options management
 function renderOptions() {
     const container = document.getElementById('options-container');
     container.innerHTML = '';
@@ -99,7 +92,6 @@ function addOption() {
     }
 }
 
-// Create proposal
 async function createProposal() {
     if (!wallet) {
         alert('Please connect your wallet');
@@ -136,7 +128,6 @@ async function createProposal() {
     try {
         const proposalKeypair = Keypair.generate();
         
-        // Encode instruction data (Borsh format)
         const data = encodeCreateProposal(description, options, duration);
         
         const instruction = new TransactionInstruction({
@@ -153,10 +144,7 @@ async function createProposal() {
         transaction.feePayer = wallet.publicKey;
         transaction.recentBlockhash = (await connection.getLatestBlockhash()).blockhash;
         
-        // Sign with proposal keypair
         transaction.partialSign(proposalKeypair);
-        
-        // Sign and send with wallet
         const signed = await wallet.signTransaction(transaction);
         const signature = await connection.sendRawTransaction(signed.serialize());
         await connection.confirmTransaction(signature);
@@ -176,7 +164,6 @@ async function createProposal() {
     }
 }
 
-// Load proposals
 async function loadProposals() {
     const loading = document.getElementById('loading');
     const noProposals = document.getElementById('no-proposals');
@@ -217,7 +204,6 @@ async function loadProposals() {
     }
 }
 
-// Create proposal card
 function createProposalCard(proposal) {
     const card = document.createElement('div');
     card.className = 'proposal-card';
@@ -232,7 +218,6 @@ function createProposalCard(proposal) {
         count > arr[maxIdx] ? idx : maxIdx, 0
     );
     
-    // Check if current user is the creator
     const isCreator = wallet && wallet.publicKey && 
                       proposal.creator.toString() === wallet.publicKey.toString();
     const canClose = isCreator && votingEnded && proposal.isActive;
@@ -338,7 +323,6 @@ window.closeProposal = async function(proposalPubkey) {
     try {
         const proposalKey = new PublicKey(proposalPubkey);
         
-        // Get discriminator for close_proposal instruction
         const discriminator = Buffer.from([213, 178, 139, 19, 50, 191, 82, 245]);
         
         const instruction = new TransactionInstruction({
@@ -366,7 +350,6 @@ window.closeProposal = async function(proposalPubkey) {
     }
 };
 
-// Vote function
 window.vote = async function(proposalPubkey, optionIndex) {
     if (!wallet) {
         alert('Please connect your wallet');
@@ -410,7 +393,6 @@ window.vote = async function(proposalPubkey, optionIndex) {
     }
 };
 
-// Encoding functions
 function encodeCreateProposal(description, options, durationSec) {
     const discriminator = Buffer.from([132, 116, 68, 174, 216, 160, 198, 22]);
     const descBuffer = encodeString(description);
@@ -447,21 +429,18 @@ function encodeI64(n) {
     return buf;
 }
 
-// Decoding functions
 function decodeProposal(data) {
-    let offset = 8; // Skip discriminator
+    let offset = 8;
     
-    // Read creator (32 bytes)
     const creator = new PublicKey(data.slice(offset, offset + 32));
     offset += 32;
     
-    // Read description (string)
+   
     const descLen = data.readUInt32LE(offset);
     offset += 4;
     const description = new TextDecoder().decode(data.slice(offset, offset + descLen));
     offset += descLen;
     
-    // Read options (Vec<String>)
     const optionsLen = data.readUInt32LE(offset);
     offset += 4;
     const options = [];
@@ -473,7 +452,6 @@ function decodeProposal(data) {
         options.push(str);
     }
     
-    // Read vote_counts (Vec<u64>)
     const countsLen = data.readUInt32LE(offset);
     offset += 4;
     const voteCounts = [];
@@ -483,21 +461,17 @@ function decodeProposal(data) {
         voteCounts.push(count);
     }
     
-    // Read is_active (bool)
     const isActive = data[offset] === 1;
     offset += 1;
     
-    // Read start_ts (i64)
     const startTs = Number(data.readBigInt64LE(offset));
     offset += 8;
     
-    // Read end_ts (i64)
     const endTs = Number(data.readBigInt64LE(offset));
     
     return { creator, description, options, voteCounts, isActive, startTs, endTs };
 }
 
-// Derive vote PDA
 async function deriveVotePda(proposalPubkey, voterPubkey) {
     const [pda] = await PublicKey.findProgramAddress(
         [
@@ -510,7 +484,6 @@ async function deriveVotePda(proposalPubkey, voterPubkey) {
     return pda;
 }
 
-// Utility functions
 function shortAddress(address) {
     return `${address.slice(0, 4)}...${address.slice(-4)}`;
 }
@@ -521,7 +494,6 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// Event listeners
 function setupEventListeners() {
     document.getElementById('connect-wallet').addEventListener('click', connectWallet);
     document.getElementById('disconnect-wallet').addEventListener('click', disconnectWallet);

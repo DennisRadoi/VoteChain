@@ -24,7 +24,7 @@ describe("voting_dapp with deadline", () => {
 
   it("Creates proposal with deadline", async () => {
     const proposal = anchor.web3.Keypair.generate();
-    const duration = 10; // 10 sec
+    const duration = 10;
 
     await program.methods
       .createProposal("Deadline test base", new anchor.BN(duration))
@@ -76,7 +76,7 @@ describe("voting_dapp with deadline", () => {
 
   it("Prevents vote after deadline", async () => {
     const proposal = anchor.web3.Keypair.generate();
-    const duration = 1; // 1 sec
+    const duration = 1;
 
     await program.methods
       .createProposal("Expire fast", new anchor.BN(duration))
