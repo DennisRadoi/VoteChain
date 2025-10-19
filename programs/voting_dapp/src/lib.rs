@@ -32,8 +32,6 @@ declare_id!("YzJtguRigAkcpxN5rRpWWiJiQkBXKXNZEu5zWQVJqK4");
 #[program]
 pub mod voting_dapp {
     use super::*;
-
-    // Create a new proposal
     pub fn create_proposal(
         ctx: Context<CreateProposal>, 
         description: String, 
@@ -71,7 +69,7 @@ pub mod voting_dapp {
         Ok(())
     }
 
-    // Vote on a proposal
+
     pub fn vote(ctx: Context<VoteProposal>, option_index: u8) -> Result<()> {
         let proposal = &mut ctx.accounts.proposal;
         require!(proposal.is_active, VotingError::ProposalClosed);
@@ -80,14 +78,14 @@ pub mod voting_dapp {
         require!(now < proposal.end_ts, VotingError::DeadlinePassed);
         require!((option_index as usize) < proposal.options.len(), VotingError::InvalidOption);
         
-        // This will fail automatically on second attempt because pda already exists
+       
         let vote = &mut ctx.accounts.vote;
         vote.proposal = proposal.key();
         vote.voter = *ctx.accounts.voter.key;
         vote.option_index = option_index;
         vote.bump = ctx.bumps.vote;
 
-        // Update tally
+        
         proposal.vote_counts[option_index as usize] += 1;
         
         emit!(VoteCast {
@@ -98,7 +96,7 @@ pub mod voting_dapp {
         Ok(())
     }
 
-    // Close proposal (only creator can close)
+    
     pub fn close_proposal(ctx: Context<CloseProposal>) -> Result<()> {
         let proposal = &mut ctx.accounts.proposal;
         require!(proposal.creator == *ctx.accounts.creator.key, VotingError::Unauthorized);
@@ -114,19 +112,14 @@ pub mod voting_dapp {
         });
         Ok(())
     }
-
-    // Delete proposal and reclaim rent (only creator, only after closed)
     pub fn delete_proposal(ctx: Context<DeleteProposal>) -> Result<()> {
         let proposal = &ctx.accounts.proposal;
         require!(proposal.creator == *ctx.accounts.creator.key, VotingError::Unauthorized);
         require!(!proposal.is_active, VotingError::ProposalStillActive);
         
-        // Account will be closed automatically and rent returned to creator
         Ok(())
     }
 }
-
-// ----------------- ACCOUNTS -----------------
 
 #[account]
 pub struct  Proposal {
@@ -147,16 +140,10 @@ pub struct Vote {
     pub bump: u8,
 }
 
-// ----------------- CONTEXTS -----------------
+
 
 #[derive(Accounts)]
 pub struct CreateProposal<'info> {
-    // Space calculation:
-    // 8 (discriminator) + 32 (creator) + 4 + MAX_DESCRIPTION_LEN (description)
-    // + 4 + MAX_OPTIONS * (4 + MAX_OPTION_LEN) (options vec)
-    // + 4 + MAX_OPTIONS * 8 (vote_counts vec)
-    // + 1 (is_active) + 8 (start_ts) + 8 (end_ts)
-    // = 8 + 32 + 204 + 544 + 84 + 1 + 8 + 8 = 889 bytes
     #[account(init, payer = creator, space = 900)]
     pub proposal: Account<'info, Proposal>,
     #[account(mut)]
@@ -168,11 +155,10 @@ pub struct CreateProposal<'info> {
 pub struct VoteProposal<'info> {
     #[account(mut)]
     pub proposal: Account<'info, Proposal>,
-    // Using PDA to guarantee uniqueness: one (proposal, voter) pair
     #[account(
         init, 
         payer = voter, 
-        space = 8 + 32 + 32 + 1 + 1, // discr + proposal + voter + option_index + bump
+        space = 8 + 32 + 32 + 1 + 1, 
         seeds = [b"vote", proposal.key().as_ref(), voter.key().as_ref()],
         bump
     )]
@@ -197,7 +183,6 @@ pub struct DeleteProposal<'info> {
     pub creator: Signer<'info>,
 }
 
-// ----------------- ERRORS -----------------
 
 #[error_code]
 pub enum VotingError {
